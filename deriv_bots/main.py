@@ -16,8 +16,8 @@ def interactive_setup():
 
     use_interactive = input("Do you want to setup interactively? (y/n) [Default: y]: ").strip().lower()
     if use_interactive == 'n':
-        print(f"Using defaults from config.py: {SYMBOL}, {TICK_WINDOW} ticks.")
-        return SYMBOL, TICK_WINDOW
+        print(f"Using defaults from config.py: {SYMBOL}, {TICK_WINDOW} ticks, Max Runs: {MAX_RUNS}")
+        return SYMBOL, TICK_WINDOW, MAX_RUNS
 
     # 1. Ask for Type
     print("\nSelect the type of asset:")
@@ -43,10 +43,23 @@ def interactive_setup():
         print(f"Invalid input, using default: {TICK_WINDOW}")
         ticks_val = TICK_WINDOW
 
+    # 3. Ask for Execution Mode (Runs)
+    runs_input = input(f"\nEnter the number of runs before stopping (0 for continuous) [Default: {MAX_RUNS}]: ").strip()
+    try:
+        max_runs_val = int(runs_input) if runs_input else MAX_RUNS
+    except ValueError:
+        print(f"Invalid input, using default: {MAX_RUNS}")
+        max_runs_val = MAX_RUNS
+
     print("\n========================================")
     print(f"Setup Complete! Starting bot for {symbol_str} analyzing last {ticks_val} ticks.")
+    if max_runs_val == 0:
+        print("Execution mode: Continuous")
+    else:
+        print(f"Execution mode: {max_runs_val} runs")
     print("========================================\n")
-    return symbol_str, ticks_val
+
+    return symbol_str, ticks_val, max_runs_val
 
 async def main():
     if not API_TOKEN:
@@ -54,7 +67,7 @@ async def main():
         sys.exit(1)
 
     # Run interactive setup
-    active_symbol, active_tick_window = interactive_setup()
+    active_symbol, active_tick_window, active_max_runs = interactive_setup()
 
     client = DerivWSClient(app_id=APP_ID, api_token=API_TOKEN)
 
@@ -68,8 +81,8 @@ async def main():
 
     try:
         while True:
-            if MAX_RUNS > 0 and runs >= MAX_RUNS:
-                logger.info(f"Reached maximum runs ({MAX_RUNS}). Stopping.")
+            if active_max_runs > 0 and runs >= active_max_runs:
+                logger.info(f"Reached maximum runs ({active_max_runs}). Stopping.")
                 break
 
             logger.info(f"Fetching last {active_tick_window} ticks for {active_symbol}...")
