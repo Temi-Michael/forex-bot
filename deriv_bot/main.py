@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import sys
-from config import API_TOKEN, APP_ID, SYMBOL, STAKE_AMOUNT, TICK_WINDOW, TRADE_DURATION, MAX_RUNS, SLEEP_BETWEEN_TRADES
+from config import API_TOKEN, APP_ID, SYMBOL, STAKE_AMOUNT, TICK_WINDOW, TRADE_DURATION, MAX_RUNS, SLEEP_BETWEEN_TRADES, USE_MARTINGALE, MARTINGALE_MULTIPLIER, MAX_MARTINGALE_LEVEL
 from ws_client import DerivWSClient
 from strategy import evaluate_ldp_strategy
 
@@ -16,8 +16,8 @@ def interactive_setup():
 
     use_interactive = input("Do you want to setup interactively? (y/n) [Default: y]: ").strip().lower()
     if use_interactive == 'n':
-        print(f"Using defaults from config.py: {SYMBOL}, {TICK_WINDOW} ticks, Max Runs: {MAX_RUNS}")
-        return SYMBOL, TICK_WINDOW, MAX_RUNS
+        print(f"Using defaults: {SYMBOL}, {TICK_WINDOW} ticks, Max Runs: {MAX_RUNS}, Martingale: {USE_MARTINGALE}")
+        return SYMBOL, TICK_WINDOW, MAX_RUNS, USE_MARTINGALE
 
     # 1. Ask for Type
     print("\nSelect the type of asset:")
@@ -51,15 +51,22 @@ def interactive_setup():
         print(f"Invalid input, using default: {MAX_RUNS}")
         max_runs_val = MAX_RUNS
 
+    # 4. Ask for Martingale
+    martingale_input = input(f"\nEnable Martingale recovery system? (y/n) [Default: {'y' if USE_MARTINGALE else 'n'}]: ").strip().lower()
+    if martingale_input == 'y':
+        use_martingale_val = True
+    elif martingale_input == 'n':
+        use_martingale_val = False
+    else:
+        use_martingale_val = USE_MARTINGALE
+
     print("\n========================================")
     print(f"Setup Complete! Starting bot for {symbol_str} analyzing last {ticks_val} ticks.")
-    if max_runs_val == 0:
-        print("Execution mode: Continuous")
-    else:
-        print(f"Execution mode: {max_runs_val} runs")
+    print(f"Execution mode: {'Continuous' if max_runs_val == 0 else f'{max_runs_val} runs'}")
+    print(f"Martingale: {'Enabled' if use_martingale_val else 'Disabled'}")
     print("========================================\n")
 
-    return symbol_str, ticks_val, max_runs_val
+    return symbol_str, ticks_val, max_runs_val, use_martingale_val
 
 async def main():
     if not API_TOKEN:
@@ -67,7 +74,7 @@ async def main():
         sys.exit(1)
 
     # Run interactive setup
-    active_symbol, active_tick_window, active_max_runs = interactive_setup()
+    active_symbol, active_tick_window, active_max_runs, active_martingale = interactive_setup()
 
     client = DerivWSClient(app_id=APP_ID, api_token=API_TOKEN)
 
@@ -77,7 +84,23 @@ async def main():
         logger.error(f"Failed to initialize client: {e}")
         sys.exit(1)
 
+    # 1. Fetch pip size for active symbol
+    pip_size = 4  # Default fallback
+    try:
+        logger.info("Fetching active symbols to determine precise pip size...")
+        symbols_resp = await client.get_active_symbols()
+        if "active_symbols" in symbols_resp:
+            for sym_data in symbols_resp["active_symbols"]:
+                if sym_data["symbol"] == active_symbol:
+                    pip_size = sym_data.get("pip_size", 4)
+                    logger.info(f"Pip size for {active_symbol} determined as {pip_size}")
+                    break
+    except Exception as e:
+        logger.error(f"Could not fetch pip size, using default {pip_size}: {e}")
+
     runs = 0
+    current_stake = STAKE_AMOUNT
+    consecutive_losses = 0
 
     try:
         while True:
@@ -94,15 +117,16 @@ async def main():
                 continue
 
             logger.info(f"Evaluating LDP Strategy on {len(prices)} ticks...")
-            contract_type, barrier = evaluate_ldp_strategy(prices)
+            contract_type, barrier = evaluate_ldp_strategy(prices, pip_size)
 
             if contract_type and barrier:
                 logger.info(f"Signal generated: {contract_type} with barrier {barrier}")
 
                 # Execute Trade
+                logger.info(f"Placing trade with stake: {current_stake:.2f}")
                 response = await client.buy_contract(
                     symbol=active_symbol,
-                    amount=STAKE_AMOUNT,
+                    amount=current_stake,
                     contract_type=contract_type,
                     barrier=barrier,
                     duration=TRADE_DURATION
@@ -112,7 +136,34 @@ async def main():
                     logger.error(f"Trade Error: {response['error']['message']}")
                 else:
                     buy_details = response.get("buy", {})
-                    logger.info(f"Trade successful! Contract ID: {buy_details.get('contract_id')} - Balance after: {buy_details.get('balance_after')}")
+                    contract_id = buy_details.get('contract_id')
+                    logger.info(f"Trade opened! Contract ID: {contract_id} - Balance after: {buy_details.get('balance_after')}")
+
+                    # Poll for contract result
+                    logger.info("Waiting for contract to close...")
+                    while True:
+                        await asyncio.sleep(2)
+                        status_resp = await client.get_contract_status(contract_id)
+                        contract_info = status_resp.get("proposal_open_contract", {})
+
+                        if contract_info.get("is_sold") == 1:
+                            profit = contract_info.get("profit", 0)
+                            if profit > 0:
+                                logger.info(f"WIN! Profit: {profit}")
+                                current_stake = STAKE_AMOUNT
+                                consecutive_losses = 0
+                            else:
+                                logger.info(f"LOSS. Profit: {profit}")
+                                if active_martingale:
+                                    consecutive_losses += 1
+                                    if consecutive_losses <= MAX_MARTINGALE_LEVEL:
+                                        current_stake = current_stake * MARTINGALE_MULTIPLIER
+                                        logger.info(f"Martingale active. Next stake multiplied to: {current_stake:.2f}")
+                                    else:
+                                        logger.warning(f"Max Martingale Level ({MAX_MARTINGALE_LEVEL}) reached. Resetting stake.")
+                                        current_stake = STAKE_AMOUNT
+                                        consecutive_losses = 0
+                            break
 
                 runs += 1
                 logger.info(f"Sleeping for {SLEEP_BETWEEN_TRADES} seconds before next cycle...")

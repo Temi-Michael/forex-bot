@@ -90,6 +90,22 @@ class DerivWSClient:
         prices = history.get("prices", [])
         return prices
 
+    async def get_active_symbols(self) -> Dict[str, Any]:
+        """Fetch all active symbols to determine correct pip sizes."""
+        request = {
+            "active_symbols": "brief",
+            "product_type": "basic"
+        }
+        return await self.send_request(request)
+
+    async def get_contract_status(self, contract_id: int) -> Dict[str, Any]:
+        """Check the status of an open or recently closed contract."""
+        request = {
+            "proposal_open_contract": 1,
+            "contract_id": contract_id
+        }
+        return await self.send_request(request)
+
     async def buy_contract(self, symbol: str, amount: float, contract_type: str, barrier: str, duration: int) -> Dict[str, Any]:
         """
         Execute a digit over/under contract.

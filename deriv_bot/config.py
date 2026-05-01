@@ -35,3 +35,8 @@ TRADE_DURATION = 1             # Duration in ticks for the contract
 # Execution Settings
 MAX_RUNS = 0                   # Number of trades to execute before stopping (0 = continuous)
 SLEEP_BETWEEN_TRADES = 5       # Seconds to wait after a trade finishes before looking for the next setup
+
+# Martingale Settings
+USE_MARTINGALE = True          # Enable/Disable Martingale recovery system
+MARTINGALE_MULTIPLIER = 2.0    # Stake multiplier after a loss
+MAX_MARTINGALE_LEVEL = 5       # Maximum consecutive losses before resetting stake
