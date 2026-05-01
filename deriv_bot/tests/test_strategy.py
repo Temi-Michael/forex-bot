@@ -3,13 +3,15 @@ from strategy import extract_last_digit, evaluate_ldp_strategy
 
 class TestStrategy(unittest.TestCase):
     def test_extract_last_digit(self):
-        self.assertEqual(extract_last_digit(123.456), 6)
-        self.assertEqual(extract_last_digit(123.4560), 6)  # Trailing zeros stripped by logic
-        self.assertEqual(extract_last_digit(123.4), 4)
-        self.assertEqual(extract_last_digit(123.0), 3)     # Strips trailing .0 to 123 => last digit 3
-        # However, Deriv ticks are usually strings or floats, if we do have something like 1000.00
-        # `f"{1000.00:.4f}".rstrip('0').rstrip('.')` -> "1000" => 0.
-        self.assertEqual(extract_last_digit(1000.00), 0)
+        # Default pip_size = 4
+        self.assertEqual(extract_last_digit(123.4567, 4), 7)
+        self.assertEqual(extract_last_digit(123.456, 4), 0)  # 123.4560 -> 0
+        self.assertEqual(extract_last_digit(123.4, 4), 0)    # 123.4000 -> 0
+        self.assertEqual(extract_last_digit(1000.00, 4), 0)  # 1000.0000 -> 0
+
+        # Explicit pip_size = 2
+        self.assertEqual(extract_last_digit(123.45, 2), 5)
+        self.assertEqual(extract_last_digit(123.4, 2), 0)    # 123.40 -> 0
 
     def test_evaluate_ldp_strategy_over(self):
         # Median > 4.5
