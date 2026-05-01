@@ -8,10 +8,53 @@ from .strategy import evaluate_ldp_strategy
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def interactive_setup():
+    """Prompts the user via terminal to set up the bot's parameters interactively."""
+    print("========================================")
+    print("    Deriv Over/Under Bot Setup Setup    ")
+    print("========================================")
+
+    use_interactive = input("Do you want to setup interactively? (y/n) [Default: y]: ").strip().lower()
+    if use_interactive == 'n':
+        print(f"Using defaults from config.py: {SYMBOL}, {TICK_WINDOW} ticks.")
+        return SYMBOL, TICK_WINDOW
+
+    # 1. Ask for Type
+    print("\nSelect the type of asset:")
+    print("1) Synthetic Indices")
+    print("2) Forex Pairs")
+    asset_choice = input("Enter 1 or 2 [Default: 1]: ").strip()
+
+    symbol_str = SYMBOL
+    if asset_choice == '2':
+        print("\nSample Forex Pairs: frxEURUSD, frxGBPUSD, frxUSDJPY, frxAUDUSD")
+        user_symbol = input("Enter the Forex Pair symbol [Default: frxEURUSD]: ").strip()
+        symbol_str = user_symbol if user_symbol else "frxEURUSD"
+    else:
+        print("\nSample Synthetic Indices: R_10, R_25, R_50, R_75, R_100")
+        user_symbol = input("Enter the Synthetic Index symbol [Default: R_100]: ").strip()
+        symbol_str = user_symbol if user_symbol else "R_100"
+
+    # 2. Ask for Tick Window
+    tick_input = input(f"\nEnter the number of past ticks to analyze [Default: {TICK_WINDOW}]: ").strip()
+    try:
+        ticks_val = int(tick_input) if tick_input else TICK_WINDOW
+    except ValueError:
+        print(f"Invalid input, using default: {TICK_WINDOW}")
+        ticks_val = TICK_WINDOW
+
+    print("\n========================================")
+    print(f"Setup Complete! Starting bot for {symbol_str} analyzing last {ticks_val} ticks.")
+    print("========================================\n")
+    return symbol_str, ticks_val
+
 async def main():
     if not API_TOKEN:
         logger.error("API_TOKEN is not set. Please check your .env file.")
         sys.exit(1)
+
+    # Run interactive setup
+    active_symbol, active_tick_window = interactive_setup()
 
     client = DerivWSClient(app_id=APP_ID, api_token=API_TOKEN)
 
@@ -29,11 +72,11 @@ async def main():
                 logger.info(f"Reached maximum runs ({MAX_RUNS}). Stopping.")
                 break
 
-            logger.info(f"Fetching last {TICK_WINDOW} ticks for {SYMBOL}...")
-            prices = await client.get_ticks_history(SYMBOL, count=TICK_WINDOW)
+            logger.info(f"Fetching last {active_tick_window} ticks for {active_symbol}...")
+            prices = await client.get_ticks_history(active_symbol, count=active_tick_window)
 
-            if len(prices) < TICK_WINDOW:
-                logger.warning(f"Received {len(prices)} ticks, expected {TICK_WINDOW}. Waiting and retrying...")
+            if len(prices) < active_tick_window:
+                logger.warning(f"Received {len(prices)} ticks, expected {active_tick_window}. Waiting and retrying...")
                 await asyncio.sleep(5)
                 continue
 
@@ -45,7 +88,7 @@ async def main():
 
                 # Execute Trade
                 response = await client.buy_contract(
-                    symbol=SYMBOL,
+                    symbol=active_symbol,
                     amount=STAKE_AMOUNT,
                     contract_type=contract_type,
                     barrier=barrier,
