@@ -1,5 +1,5 @@
 import unittest
-from deriv_bots.strategy import extract_last_digit, evaluate_ldp_strategy
+from strategy import extract_last_digit, evaluate_ldp_strategy
 
 class TestStrategy(unittest.TestCase):
     def test_extract_last_digit(self):

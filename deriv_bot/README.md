@@ -17,7 +17,7 @@ By using the standard Python `websockets` library rather than a heavy wrapper, t
 ## Folder Structure
 
 ```
-deriv_bots/
+deriv_bot/
 ├── __init__.py           # Makes the directory a Python package
 ├── README.md             # This comprehensive setup guide
 ├── .env.example          # Template for your Deriv API credentials
@@ -31,9 +31,10 @@ deriv_bots/
 ## Requirements & Installation
 
 1. **Python 3.9+** must be installed on your system.
-2. From the root of the repository, install the necessary Python dependencies using pip:
+2. Navigate into the `deriv_bot` folder and install the necessary Python dependencies using pip:
 
 ```bash
+cd deriv_bot
 pip install -r requirements.txt
 ```
 
@@ -43,21 +44,20 @@ pip install -r requirements.txt
 
 Before running the bot, you must authenticate it with your Deriv account.
 
-1. Navigate to the `deriv_bots` directory (or do this from the root).
-2. Copy the example environment file to create your active `.env` file:
+1. While inside the `deriv_bot` directory, copy the example environment file to create your active `.env` file:
    ```bash
-   cp deriv_bots/.env.example deriv_bots/.env
+   cp .env.example .env
    ```
-3. Open `deriv_bots/.env` and add your **Deriv API Token** and **App ID**.
+2. Open `.env` and add your **Deriv API Token** and **App ID**.
    - You can generate an API Token from your Deriv account's Security & API settings (ensure it has Read and Trade scopes).
    - You can register an App ID on the Deriv Developers portal, or use a default one like `1089`.
 
 ## Running the Bot
 
-Run the bot as a module from the **root directory** of the repository:
+Run the bot directly from inside the `deriv_bot` folder:
 
 ```bash
-python -m deriv_bots.main
+python main.py
 ```
 
 ### Interactive Prompts

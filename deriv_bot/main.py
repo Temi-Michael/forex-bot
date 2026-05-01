@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import sys
-from .config import API_TOKEN, APP_ID, SYMBOL, STAKE_AMOUNT, TICK_WINDOW, TRADE_DURATION, MAX_RUNS, SLEEP_BETWEEN_TRADES
-from .ws_client import DerivWSClient
-from .strategy import evaluate_ldp_strategy
+from config import API_TOKEN, APP_ID, SYMBOL, STAKE_AMOUNT, TICK_WINDOW, TRADE_DURATION, MAX_RUNS, SLEEP_BETWEEN_TRADES
+from ws_client import DerivWSClient
+from strategy import evaluate_ldp_strategy
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
