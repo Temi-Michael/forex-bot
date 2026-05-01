@@ -30,11 +30,15 @@ class DerivWSClient:
         logger.info("Successfully authenticated.")
 
     async def disconnect(self):
-        if self.ws:
-            await self.ws.close()
-        if self._listener_task:
-            self._listener_task.cancel()
-        logger.info("Disconnected from WebSocket.")
+        try:
+            if self.ws:
+                await self.ws.close()
+            if self._listener_task:
+                self._listener_task.cancel()
+            logger.info("Disconnected from WebSocket.")
+        except Exception:
+            # Suppress errors if the event loop is already shutting down (Ctrl+C)
+            pass
 
     async def _listen(self):
         try:

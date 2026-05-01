@@ -1,11 +1,26 @@
 import asyncio
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
+import os
 from config import API_TOKEN, APP_ID, SYMBOL, STAKE_AMOUNT, TICK_WINDOW, TRADE_DURATION, MAX_RUNS, SLEEP_BETWEEN_TRADES, USE_MARTINGALE, MARTINGALE_MULTIPLIER, MAX_MARTINGALE_LEVEL
 from ws_client import DerivWSClient
 from strategy import evaluate_ldp_strategy
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Setup robust logging (Console + File)
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+
+file_handler = RotatingFileHandler(
+    os.path.join(os.path.dirname(__file__), "deriv_bot.log"),
+    maxBytes=5 * 1024 * 1024,  # 5 MB
+    backupCount=3
+)
+file_handler.setFormatter(log_formatter)
+
+logging.basicConfig(level=logging.INFO, handlers=[console_handler, file_handler])
 logger = logging.getLogger(__name__)
 
 def interactive_setup():
@@ -173,12 +188,18 @@ async def main():
                 logger.info("No clear signal (Median exactly 4.5). Waiting before checking again.")
                 await asyncio.sleep(2)
 
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user.")
+    except asyncio.CancelledError:
+        # Expected behavior during Ctrl+C shutdown
+        pass
     except Exception as e:
         logger.error(f"Unexpected error in main loop: {e}")
     finally:
         await client.disconnect()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        # Suppress the ugly stack trace and exit cleanly
+        print("\nBot stopped cleanly by user. (Ctrl+C)")
+        sys.exit(0)
