@@ -2,15 +2,28 @@
 
 This folder contains a custom trading bot designed to trade the **Digit Over/Under** market using the Deriv WebSocket API. The bot allows you to seamlessly switch between different asset classes, such as Synthetic Indices and Forex pairs, directly from the terminal when starting the bot.
 
-## Strategy Logic
+## Features & Strategy Logic
 
-The bot implements a statistical Last Digit Prediction (LDP) strategy:
+### 1. Last Digit Prediction (LDP) Strategy
+The bot implements a statistical LDP strategy:
 1. It maintains a rolling window of the last **X ticks** (e.g., 500 ticks, customizable).
-2. It extracts the last digit of the price for each of these ticks.
+2. It fetches the exact pip size of the active symbol to correctly extract the **last digit** of the price for each of these ticks, preventing bias.
 3. It calculates the **median** of these digits.
 4. **Execution:**
    - If the median is **> 4.5**, the bot opens a **DIGITOVER 2** position.
    - If the median is **< 4.5**, the bot opens a **DIGITUNDER 7** position.
+
+### 2. Martingale Recovery System
+You can optionally enable a Martingale system to recover from losses.
+- If a trade loses, the bot multiplies the previous stake by a configured multiplier (default `2.0`).
+- If it wins, the stake resets back to the initial amount.
+- There is a maximum consecutive loss threshold (`MAX_MARTINGALE_LEVEL`) to protect your account. If this level is reached, the stake resets to the initial amount to prevent blowing the account.
+
+### 3. Session Logging
+Every time you run the bot, all terminal output is simultaneously saved to a `deriv_bot.log` file inside this folder. The file rotates automatically when it reaches 5MB, keeping a history of your past 3 sessions for review.
+
+### 4. Graceful Shutdown
+You can stop the bot at any time by pressing `Ctrl+C` in the terminal. The bot will catch the interrupt, suppress errors, cleanly close the WebSocket connection, and exit safely.
 
 By using the standard Python `websockets` library rather than a heavy wrapper, the bot is optimized for the lowest possible latency during trade execution.
 
