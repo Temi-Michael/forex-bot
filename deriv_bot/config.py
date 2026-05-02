@@ -15,11 +15,13 @@ APP_ID = os.getenv("DERIV_APP_ID", "1089")
 # ==========================================
 
 # Sample Synthetic Indices Symbols:
-# "R_10"   -> Volatility 10 Index
-# "R_25"   -> Volatility 25 Index
-# "R_50"   -> Volatility 50 Index
-# "R_75"   -> Volatility 75 Index
-# "R_100"  -> Volatility 100 Index
+# "R_10"    -> Volatility 10 Index
+# "R_25"    -> Volatility 25 Index
+# "R_50"    -> Volatility 50 Index
+# "R_75"    -> Volatility 75 Index
+# "R_100"   -> Volatility 100 Index
+# "1HZ10V"  -> Volatility 10 (1s) Index
+# "1HZ100V" -> Volatility 100 (1s) Index
 
 # Sample Forex Symbols:
 # "frxEURUSD" -> EUR/USD
@@ -33,6 +35,7 @@ TICK_WINDOW = 500              # Number of past ticks to analyze
 TRADE_DURATION = 1             # Duration in ticks for the contract
 
 # Execution Settings
+TAKE_PROFIT = 5.00             # Target profit amount to stop the session
 MAX_RUNS = 0                   # Number of trades to execute before stopping (0 = continuous)
 SLEEP_BETWEEN_TRADES = 5       # Seconds to wait after a trade finishes before looking for the next setup
 
