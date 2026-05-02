@@ -21,6 +21,11 @@ class TestStrategy(unittest.TestCase):
 
         # Median > 4.5
         # Digits: [6, 7, 8, 9, 5] -> Sorted: [5, 6, 7, 8, 9] -> Median: 7
+        """
+        Verifies that evaluate_ldp_strategy in "auto_median" mode classifies a clear high-digit median as DIGITOVER with barrier "3".
+        
+        Uses five prices whose extracted last digits produce a median greater than 4.5 (digits: [6, 7, 8, 9, 5] → median 7) and asserts the returned ctype is "DIGITOVER" and barrier is "3".
+        """
         prices = [10.1236, 10.1237, 10.1238, 10.1239, 10.1235]
         ctype, barrier = evaluate_ldp_strategy(prices, mode="auto_median")
         self.assertEqual(ctype, "DIGITOVER")
