@@ -32,10 +32,9 @@ def evaluate_ldp_strategy(prices: List[float], pip_size: int = 4, mode: str = "a
     if not prices or len(prices) < 5:
         return None, None
 
-    last_digits = [extract_last_digit(p, pip_size) for p in prices]
-
     if mode == "auto_median":
-        # Calculate Median for mean reversion.
+        # Calculate Median for mean reversion on all prices.
+        last_digits = [extract_last_digit(p, pip_size) for p in prices]
         median_val = statistics.median(last_digits)
 
         # We use Over 3 (wins on 4,5,6,7,8,9 -> 60% chance)
@@ -50,7 +49,8 @@ def evaluate_ldp_strategy(prices: List[float], pip_size: int = 4, mode: str = "a
         # Strategy: Strict OVER 3
         # Look for a streak of low numbers (e.g., 3 out of the last 4 ticks were <= 3)
         # We bet on mean reversion (that the next tick will pop back over 3).
-        recent_digits = last_digits[-4:]
+        # We only need the last 4 prices to determine the signal.
+        recent_digits = [extract_last_digit(p, pip_size) for p in prices[-4:]]
         low_count = sum(1 for d in recent_digits if d <= 3)
         if low_count >= 3:
             return "DIGITOVER", "3"
@@ -59,7 +59,8 @@ def evaluate_ldp_strategy(prices: List[float], pip_size: int = 4, mode: str = "a
         # Strategy: Strict UNDER 6
         # Look for a streak of high numbers (e.g., 3 out of the last 4 ticks were >= 6)
         # We bet on mean reversion (that the next tick will drop back under 6).
-        recent_digits = last_digits[-4:]
+        # We only need the last 4 prices to determine the signal.
+        recent_digits = [extract_last_digit(p, pip_size) for p in prices[-4:]]
         high_count = sum(1 for d in recent_digits if d >= 6)
         if high_count >= 3:
             return "DIGITUNDER", "6"
