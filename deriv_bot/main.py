@@ -272,6 +272,8 @@ async def main():
                 await asyncio.sleep(SLEEP_BETWEEN_TRADES)
 
             else:
+                # Add a very quiet heartbeat so the user knows it hasn't frozen during strict mode scans
+                print(".", end="", flush=True)
                 await asyncio.sleep(2)
 
         # If the loop breaks normally (TP hit or max runs)
