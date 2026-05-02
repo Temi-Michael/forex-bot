@@ -66,7 +66,21 @@ def interactive_setup():
         print(f"Invalid input, using default: {MAX_RUNS}")
         max_runs_val = MAX_RUNS
 
-    # 4. Ask for Martingale
+    # 4. Ask for Strategy Mode
+    print("\nSelect the Strategy Mode:")
+    print("1) Auto Median (Switches between Over/Under based on moving median)")
+    print("2) Strict OVER 3 Mode (Waits for low digit streaks, trades Over 3)")
+    print("3) Strict UNDER 6 Mode (Waits for high digit streaks, trades Under 6)")
+    mode_choice = input("Enter 1, 2, or 3 [Default: 1]: ").strip()
+
+    if mode_choice == '2':
+        strategy_mode = 'strict_over'
+    elif mode_choice == '3':
+        strategy_mode = 'strict_under'
+    else:
+        strategy_mode = 'auto_median'
+
+    # 5. Ask for Martingale
     martingale_input = input(f"\nEnable Martingale recovery system? (y/n) [Default: {'y' if USE_MARTINGALE else 'n'}]: ").strip().lower()
     if martingale_input == 'y':
         use_martingale_val = True
@@ -78,10 +92,11 @@ def interactive_setup():
     print("\n========================================")
     print(f"Setup Complete! Starting bot for {symbol_str} analyzing last {ticks_val} ticks.")
     print(f"Execution mode: {'Continuous' if max_runs_val == 0 else f'{max_runs_val} runs'}")
+    print(f"Strategy Mode : {strategy_mode.upper()}")
     print(f"Martingale: {'Enabled' if use_martingale_val else 'Disabled'}")
     print("========================================\n")
 
-    return symbol_str, ticks_val, max_runs_val, use_martingale_val
+    return symbol_str, ticks_val, max_runs_val, use_martingale_val, strategy_mode
 
 async def main():
     if not API_TOKEN:
@@ -89,7 +104,7 @@ async def main():
         sys.exit(1)
 
     # Run interactive setup
-    active_symbol, active_tick_window, active_max_runs, active_martingale = interactive_setup()
+    active_symbol, active_tick_window, active_max_runs, active_martingale, strategy_mode = interactive_setup()
 
     client = DerivWSClient(app_id=APP_ID, api_token=API_TOKEN)
 
@@ -140,7 +155,7 @@ async def main():
                 await asyncio.sleep(5)
                 continue
 
-            contract_type, barrier = evaluate_ldp_strategy(prices, pip_size)
+            contract_type, barrier = evaluate_ldp_strategy(prices, pip_size, strategy_mode)
 
             if contract_type and barrier:
                 print("\n" + "-"*40)

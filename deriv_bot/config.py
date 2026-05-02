@@ -38,5 +38,5 @@ SLEEP_BETWEEN_TRADES = 5       # Seconds to wait after a trade finishes before l
 
 # Martingale Settings
 USE_MARTINGALE = True          # Enable/Disable Martingale recovery system
-MARTINGALE_MULTIPLIER = 2.0    # Stake multiplier after a loss
+MARTINGALE_MULTIPLIER = 2.5    # Stake multiplier after a loss (2.5x needed for Over 3 / Under 6)
 MAX_MARTINGALE_LEVEL = 5       # Maximum consecutive losses before resetting stake

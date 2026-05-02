@@ -4,19 +4,17 @@ This folder contains a custom trading bot designed to trade the **Digit Over/Und
 
 ## Features & Strategy Logic
 
-### 1. Last Digit Prediction (LDP) Strategy
-The bot implements a statistical LDP strategy:
-1. It maintains a rolling window of the last **X ticks** (e.g., 500 ticks, customizable).
-2. It fetches the exact pip size of the active symbol to correctly extract the **last digit** of the price for each of these ticks, preventing bias.
-3. It calculates the **median** of these digits.
-4. **Execution (Optimized for Martingale):**
-   - If the median is **> 4.5**, the bot opens a **DIGITOVER 4** position.
-   - If the median is **< 4.5**, the bot opens a **DIGITUNDER 5** position.
-   - *Why 4 and 5?* Over 4 wins on 5 digits (5,6,7,8,9) and Under 5 wins on 5 digits (0,1,2,3,4). This perfectly balances the probability to ~50% and yields a ~95% payout. This symmetrical payout allows a Martingale multiplier of 2.1 to properly recover losses, unlike the asymmetrical payouts of Over 2 / Under 7.
+### 1. Selectable Strategy Modes
+Because Deriv ticks are pseudorandom (each digit 0-9 has a 10% probability), predicting digits relies on mean reversion rather than pure direction. The bot now offers three interactive modes using **Over 3** (wins 60%) and **Under 6** (wins 60%):
+
+1. **Auto Median Mode:** Maintains a rolling window of the last X ticks. If the median is high (> 4.5), it follows the momentum/trend and trades **Over 3**. If the median is low (< 4.5), it follows the trend downward and trades **Under 6**.
+2. **Strict OVER 3 Mode:** Tracks the very last few ticks. If a streak of low digits occurs (e.g., three digits under 3 in a row), it executes a **DIGITOVER 3** expecting a mean reversion.
+3. **Strict UNDER 6 Mode:** Similar to above, if a streak of high digits occurs (e.g., three digits over 6 in a row), it executes a **DIGITUNDER 6**.
 
 ### 2. Martingale Recovery System
 You can optionally enable a Martingale system to recover from losses.
-- If a trade loses, the bot multiplies the previous stake by a configured multiplier (default `2.0`).
+- Because Over 3 / Under 6 has a safer **60% win rate**, the payout is naturally lower than a 50/50 trade. To recover losses mathematically, the default Martingale multiplier is set higher to **2.5**.
+- If a trade loses, the bot multiplies the previous stake by this multiplier.
 - If it wins, the stake resets back to the initial amount.
 - There is a maximum consecutive loss threshold (`MAX_MARTINGALE_LEVEL`) to protect your account. If this level is reached, the stake resets to the initial amount to prevent blowing the account.
 

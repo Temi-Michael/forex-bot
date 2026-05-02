@@ -17,37 +17,51 @@ def extract_last_digit(price: float, pip_size: int = 4) -> int:
 
     return int(price_str[-1])
 
-def evaluate_ldp_strategy(prices: List[float], pip_size: int = 4) -> Tuple[Optional[str], Optional[str]]:
+def evaluate_ldp_strategy(prices: List[float], pip_size: int = 4, mode: str = "auto_median") -> Tuple[Optional[str], Optional[str]]:
     """
-    Evaluates the Over/Under Median Strategy on a list of prices.
+    Evaluates the Over/Under Strategy based on the selected mode.
 
     Args:
-        prices: List of the latest tick prices (e.g., 500 ticks)
+        prices: List of the latest tick prices.
         pip_size: Number of decimal places the symbol naturally uses.
+        mode: The strategy mode ('auto_median', 'strict_over', 'strict_under')
 
     Returns:
         Tuple of (contract_type, barrier) or (None, None) if no signal.
     """
-    if not prices:
+    if not prices or len(prices) < 5:
         return None, None
 
     last_digits = [extract_last_digit(p, pip_size) for p in prices]
 
-    # Calculate Median
-    median_val = statistics.median(last_digits)
+    if mode == "auto_median":
+        # Calculate Median for mean reversion.
+        median_val = statistics.median(last_digits)
 
-    # Strategy Rules (Optimized for Martingale Payouts):
-    # OVER 2 / UNDER 7 offer asymmetrical payouts that break Martingale.
-    # OVER 4 (wins on 5,6,7,8,9) and UNDER 5 (wins on 0,1,2,3,4) give ~95% payout,
-    # ensuring a Martingale multiplier of 2.1 can recover losses and profit.
-    #
-    # If Median > 4.5 -> OPEN OVER 4
-    # If Median < 4.5 -> OPEN UNDER 5
+        # We use Over 3 (wins on 4,5,6,7,8,9 -> 60% chance)
+        # and Under 6 (wins on 0,1,2,3,4,5 -> 60% chance)
+        # This requires a higher Martingale multiplier (~2.5x) but wins much more frequently.
+        if median_val > 4.5:
+            return "DIGITOVER", "3"
+        elif median_val < 4.5:
+            return "DIGITUNDER", "6"
 
-    if median_val > 4.5:
-        return "DIGITOVER", "4"
-    elif median_val < 4.5:
-        return "DIGITUNDER", "5"
+    elif mode == "strict_over":
+        # Strategy: Strict OVER 3
+        # Look for a streak of low numbers (e.g., 3 out of the last 4 ticks were <= 3)
+        # We bet on mean reversion (that the next tick will pop back over 3).
+        recent_digits = last_digits[-4:]
+        low_count = sum(1 for d in recent_digits if d <= 3)
+        if low_count >= 3:
+            return "DIGITOVER", "3"
 
-    # If exactly 4.5, no clear signal
+    elif mode == "strict_under":
+        # Strategy: Strict UNDER 6
+        # Look for a streak of high numbers (e.g., 3 out of the last 4 ticks were >= 6)
+        # We bet on mean reversion (that the next tick will drop back under 6).
+        recent_digits = last_digits[-4:]
+        high_count = sum(1 for d in recent_digits if d >= 6)
+        if high_count >= 3:
+            return "DIGITUNDER", "6"
+
     return None, None
