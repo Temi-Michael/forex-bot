@@ -3,7 +3,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import sys
 import os
-from config import API_TOKEN, APP_ID, SYMBOL, STAKE_AMOUNT, TICK_WINDOW, TRADE_DURATION, MAX_RUNS, SLEEP_BETWEEN_TRADES, USE_MARTINGALE, MARTINGALE_MULTIPLIER, MAX_MARTINGALE_LEVEL
+from config import API_TOKEN, APP_ID, SYMBOL, STAKE_AMOUNT, TICK_WINDOW, TRADE_DURATION, MAX_RUNS, SLEEP_BETWEEN_TRADES, USE_MARTINGALE, MARTINGALE_MULTIPLIER, MAX_MARTINGALE_LEVEL, TAKE_PROFIT
 from ws_client import DerivWSClient
 from strategy import evaluate_ldp_strategy
 
@@ -88,7 +88,15 @@ def interactive_setup():
         print(f"Invalid input, using default: ${STAKE_AMOUNT:.2f}")
         active_stake = STAKE_AMOUNT
 
-    # 6. Ask for Martingale
+    # 6. Ask for Take Profit Target
+    tp_input = input(f"\nEnter the Target Take Profit ($) to automatically stop the session [Default: ${TAKE_PROFIT:.2f}]: ").strip()
+    try:
+        active_take_profit = float(tp_input) if tp_input else TAKE_PROFIT
+    except ValueError:
+        print(f"Invalid input, using default Take Profit: ${TAKE_PROFIT:.2f}")
+        active_take_profit = TAKE_PROFIT
+
+    # 7. Ask for Martingale
     martingale_input = input(f"\nEnable Martingale recovery system? (y/n) [Default: {'y' if USE_MARTINGALE else 'n'}]: ").strip().lower()
     if martingale_input == 'y':
         use_martingale_val = True
@@ -116,6 +124,7 @@ def interactive_setup():
     print("\n========================================")
     print(f"Setup Complete! Starting bot for {symbol_str} analyzing last {ticks_val} ticks.")
     print(f"Initial Stake : ${active_stake:.2f}")
+    print(f"Take Profit   : ${active_take_profit:.2f}")
     print(f"Execution mode: {'Continuous' if max_runs_val == 0 else f'{max_runs_val} runs'}")
     print(f"Strategy Mode : {strategy_mode.upper()}")
     if use_martingale_val:
@@ -124,7 +133,7 @@ def interactive_setup():
         print("Martingale    : Disabled")
     print("========================================\n")
 
-    return symbol_str, ticks_val, max_runs_val, use_martingale_val, strategy_mode, active_stake, active_multiplier, active_max_level
+    return symbol_str, ticks_val, max_runs_val, use_martingale_val, strategy_mode, active_stake, active_multiplier, active_max_level, active_take_profit
 
 async def main():
     if not API_TOKEN:
@@ -132,7 +141,7 @@ async def main():
         sys.exit(1)
 
     # Run interactive setup
-    active_symbol, active_tick_window, active_max_runs, active_martingale, strategy_mode, active_stake, active_multiplier, active_max_level = interactive_setup()
+    active_symbol, active_tick_window, active_max_runs, active_martingale, strategy_mode, active_stake, active_multiplier, active_max_level, active_take_profit = interactive_setup()
 
     client = DerivWSClient(app_id=APP_ID, api_token=API_TOKEN)
 
@@ -241,7 +250,8 @@ async def main():
                                 if active_martingale:
                                     consecutive_losses += 1
                                     if consecutive_losses <= active_max_level:
-                                        current_stake = current_stake * active_multiplier
+                                        # Must round to 2 decimal places to avoid Deriv API "Invalid Price" error
+                                        current_stake = round(current_stake * active_multiplier, 2)
                                         logger.info(f"Martingale Active. Next Stake: ${current_stake:.2f}")
                                     else:
                                         logger.warning(f"Max Martingale Level Reached. Resetting Stake.")
@@ -250,10 +260,22 @@ async def main():
                             break
 
                 runs += 1
+
+                # Check Take Profit
+                if final_balance is not None and session_start_balance is not None:
+                    current_pl = final_balance - session_start_balance
+                    if current_pl >= active_take_profit:
+                        logger.info(f"\n{GREEN}TARGET REACHED!{RESET} Current P/L: ${current_pl:.2f} (Target: ${active_take_profit:.2f})")
+                        logger.info("Stopping bot automatically.")
+                        break
+
                 await asyncio.sleep(SLEEP_BETWEEN_TRADES)
 
             else:
                 await asyncio.sleep(2)
+
+        # If the loop breaks normally (TP hit or max runs)
+        raise asyncio.CancelledError
 
     except asyncio.CancelledError:
         pass
