@@ -36,18 +36,18 @@ def evaluate_ldp_strategy(prices: List[float], pip_size: int = 4) -> Tuple[Optio
     # Calculate Median
     median_val = statistics.median(last_digits)
 
-    logger.info(f"Strategy: Median calculated as {median_val:.2f} across {len(prices)} ticks.")
-
-    # Strategy Rules:
-    # If Median > 4.5 -> OPEN OVER 2
-    # If Median < 4.5 -> OPEN UNDER 7
+    # Strategy Rules (Optimized for Martingale Payouts):
+    # OVER 2 / UNDER 7 offer asymmetrical payouts that break Martingale.
+    # OVER 4 (wins on 5,6,7,8,9) and UNDER 5 (wins on 0,1,2,3,4) give ~95% payout,
+    # ensuring a Martingale multiplier of 2.1 can recover losses and profit.
+    #
+    # If Median > 4.5 -> OPEN OVER 4
+    # If Median < 4.5 -> OPEN UNDER 5
 
     if median_val > 4.5:
-        logger.info("Median > 4.5: Signaling DIGITOVER 2")
-        return "DIGITOVER", "2"
+        return "DIGITOVER", "4"
     elif median_val < 4.5:
-        logger.info("Median < 4.5: Signaling DIGITUNDER 7")
-        return "DIGITUNDER", "7"
+        return "DIGITUNDER", "5"
 
     # If exactly 4.5, no clear signal
     return None, None

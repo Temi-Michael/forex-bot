@@ -19,7 +19,7 @@ class TestStrategy(unittest.TestCase):
         prices = [10.1236, 10.1237, 10.1238, 10.1239, 10.1235]
         ctype, barrier = evaluate_ldp_strategy(prices)
         self.assertEqual(ctype, "DIGITOVER")
-        self.assertEqual(barrier, "2")
+        self.assertEqual(barrier, "4")
 
     def test_evaluate_ldp_strategy_under(self):
         # Median < 4.5
@@ -27,7 +27,7 @@ class TestStrategy(unittest.TestCase):
         prices = [10.1231, 10.1232, 10.1233, 10.1234, 10.1230]
         ctype, barrier = evaluate_ldp_strategy(prices)
         self.assertEqual(ctype, "DIGITUNDER")
-        self.assertEqual(barrier, "7")
+        self.assertEqual(barrier, "5")
 
     def test_evaluate_ldp_strategy_exact_median(self):
         # Digits: [4, 5] -> Median: 4.5

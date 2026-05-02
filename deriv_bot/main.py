@@ -117,28 +117,34 @@ async def main():
     current_stake = STAKE_AMOUNT
     consecutive_losses = 0
 
+    session_start_balance = None
+    final_balance = None
+    total_wins = 0
+    total_losses = 0
+
+    # ANSI escape sequences for colors
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    RESET = '\033[0m'
+
     try:
         while True:
             if active_max_runs > 0 and runs >= active_max_runs:
-                logger.info(f"Reached maximum runs ({active_max_runs}). Stopping.")
+                print(f"\nReached maximum runs ({active_max_runs}). Stopping.")
                 break
 
-            logger.info(f"Fetching last {active_tick_window} ticks for {active_symbol}...")
+            # Fetch ticks quietly without spamming the console
             prices = await client.get_ticks_history(active_symbol, count=active_tick_window)
 
             if len(prices) < active_tick_window:
-                logger.warning(f"Received {len(prices)} ticks, expected {active_tick_window}. Waiting and retrying...")
                 await asyncio.sleep(5)
                 continue
 
-            logger.info(f"Evaluating LDP Strategy on {len(prices)} ticks...")
             contract_type, barrier = evaluate_ldp_strategy(prices, pip_size)
 
             if contract_type and barrier:
-                logger.info(f"Signal generated: {contract_type} with barrier {barrier}")
+                print("\n" + "-"*40)
 
-                # Execute Trade
-                logger.info(f"Placing trade with stake: {current_stake:.2f}")
                 response = await client.buy_contract(
                     symbol=active_symbol,
                     amount=current_stake,
@@ -152,10 +158,18 @@ async def main():
                 else:
                     buy_details = response.get("buy", {})
                     contract_id = buy_details.get('contract_id')
-                    logger.info(f"Trade opened! Contract ID: {contract_id} - Balance after: {buy_details.get('balance_after')}")
+                    balance_after_buy = buy_details.get('balance_after')
+
+                    # Capture starting balance on the very first trade
+                    if session_start_balance is None:
+                        session_start_balance = balance_after_buy + current_stake
+
+                    logger.info("-" * 40)
+                    logger.info(f"Trade Taken: {contract_type} {barrier}")
+                    logger.info(f"Stake: ${current_stake:.2f}")
+                    logger.info(f"Balance Before: ${(balance_after_buy + current_stake):.2f}")
 
                     # Poll for contract result
-                    logger.info("Waiting for contract to close...")
                     while True:
                         await asyncio.sleep(2)
                         status_resp = await client.get_contract_status(contract_id)
@@ -163,43 +177,67 @@ async def main():
 
                         if contract_info.get("is_sold") == 1:
                             profit = contract_info.get("profit", 0)
+
+                            # Fetch final balance by hitting API again or deriving it.
+                            # But wait, balance after sell is inside proposal_open_contract?
+                            # No, but if we do a quick account check we can get it, or we just track delta.
+                            # We can also just pull it from the status if it's there.
+                            # Let's just track final_balance roughly.
+                            if final_balance is None:
+                                final_balance = session_start_balance
+                            final_balance += profit
+
                             if profit > 0:
-                                logger.info(f"WIN! Profit: {profit}")
+                                logger.info(f"{GREEN}[WIN]{RESET} Profit: +${profit:.2f}")
+                                total_wins += 1
                                 current_stake = STAKE_AMOUNT
                                 consecutive_losses = 0
                             else:
-                                logger.info(f"LOSS. Profit: {profit}")
+                                logger.info(f"{RED}[LOSS]{RESET} Profit: -${abs(profit):.2f}")
+                                total_losses += 1
                                 if active_martingale:
                                     consecutive_losses += 1
                                     if consecutive_losses <= MAX_MARTINGALE_LEVEL:
                                         current_stake = current_stake * MARTINGALE_MULTIPLIER
-                                        logger.info(f"Martingale active. Next stake multiplied to: {current_stake:.2f}")
+                                        logger.info(f"Martingale Active. Next Stake: ${current_stake:.2f}")
                                     else:
-                                        logger.warning(f"Max Martingale Level ({MAX_MARTINGALE_LEVEL}) reached. Resetting stake.")
+                                        logger.warning(f"Max Martingale Level Reached. Resetting Stake.")
                                         current_stake = STAKE_AMOUNT
                                         consecutive_losses = 0
                             break
 
                 runs += 1
-                logger.info(f"Sleeping for {SLEEP_BETWEEN_TRADES} seconds before next cycle...")
                 await asyncio.sleep(SLEEP_BETWEEN_TRADES)
 
             else:
-                logger.info("No clear signal (Median exactly 4.5). Waiting before checking again.")
                 await asyncio.sleep(2)
 
     except asyncio.CancelledError:
-        # Expected behavior during Ctrl+C shutdown
         pass
     except Exception as e:
         logger.error(f"Unexpected error in main loop: {e}")
     finally:
         await client.disconnect()
 
+        # Print Session Summary
+        logger.info("\n" + "="*40)
+        logger.info("          SESSION SUMMARY")
+        logger.info("="*40)
+        logger.info(f"Total Trades : {runs}")
+        logger.info(f"Wins         : {GREEN}{total_wins}{RESET}")
+        logger.info(f"Losses       : {RED}{total_losses}{RESET}")
+
+        if session_start_balance is not None and final_balance is not None:
+            pl = final_balance - session_start_balance
+            color = GREEN if pl > 0 else RED if pl < 0 else RESET
+            logger.info(f"Session P/L  : {color}${pl:.2f}{RESET}")
+        else:
+            logger.info("Session P/L  : $0.00")
+
+        logger.info("="*40)
+
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        # Suppress the ugly stack trace and exit cleanly
-        print("\nBot stopped cleanly by user. (Ctrl+C)")
         sys.exit(0)

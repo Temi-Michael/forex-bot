@@ -9,9 +9,10 @@ The bot implements a statistical LDP strategy:
 1. It maintains a rolling window of the last **X ticks** (e.g., 500 ticks, customizable).
 2. It fetches the exact pip size of the active symbol to correctly extract the **last digit** of the price for each of these ticks, preventing bias.
 3. It calculates the **median** of these digits.
-4. **Execution:**
-   - If the median is **> 4.5**, the bot opens a **DIGITOVER 2** position.
-   - If the median is **< 4.5**, the bot opens a **DIGITUNDER 7** position.
+4. **Execution (Optimized for Martingale):**
+   - If the median is **> 4.5**, the bot opens a **DIGITOVER 4** position.
+   - If the median is **< 4.5**, the bot opens a **DIGITUNDER 5** position.
+   - *Why 4 and 5?* Over 4 wins on 5 digits (5,6,7,8,9) and Under 5 wins on 5 digits (0,1,2,3,4). This perfectly balances the probability to ~50% and yields a ~95% payout. This symmetrical payout allows a Martingale multiplier of 2.1 to properly recover losses, unlike the asymmetrical payouts of Over 2 / Under 7.
 
 ### 2. Martingale Recovery System
 You can optionally enable a Martingale system to recover from losses.
