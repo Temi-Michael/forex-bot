@@ -31,8 +31,8 @@ def interactive_setup():
 
     use_interactive = input("Do you want to setup interactively? (y/n) [Default: y]: ").strip().lower()
     if use_interactive == 'n':
-        print(f"Using defaults: {SYMBOL}, {TICK_WINDOW} ticks, Max Runs: {MAX_RUNS}, Martingale: {USE_MARTINGALE}")
-        return SYMBOL, TICK_WINDOW, MAX_RUNS, USE_MARTINGALE
+        print(f"Using defaults: {SYMBOL}, {TICK_WINDOW} ticks, Stake: ${STAKE_AMOUNT}, Max Runs: {MAX_RUNS}, Martingale: {USE_MARTINGALE}")
+        return SYMBOL, TICK_WINDOW, MAX_RUNS, USE_MARTINGALE, "auto_median", STAKE_AMOUNT, MARTINGALE_MULTIPLIER, MAX_MARTINGALE_LEVEL
 
     # 1. Ask for Type
     print("\nSelect the type of asset:")
@@ -80,7 +80,15 @@ def interactive_setup():
     else:
         strategy_mode = 'auto_median'
 
-    # 5. Ask for Martingale
+    # 5. Ask for Stake Amount
+    stake_input = input(f"\nEnter the initial stake amount [Default: ${STAKE_AMOUNT:.2f}]: ").strip()
+    try:
+        active_stake = float(stake_input) if stake_input else STAKE_AMOUNT
+    except ValueError:
+        print(f"Invalid input, using default: ${STAKE_AMOUNT:.2f}")
+        active_stake = STAKE_AMOUNT
+
+    # 6. Ask for Martingale
     martingale_input = input(f"\nEnable Martingale recovery system? (y/n) [Default: {'y' if USE_MARTINGALE else 'n'}]: ").strip().lower()
     if martingale_input == 'y':
         use_martingale_val = True
@@ -89,14 +97,34 @@ def interactive_setup():
     else:
         use_martingale_val = USE_MARTINGALE
 
+    active_multiplier = MARTINGALE_MULTIPLIER
+    active_max_level = MAX_MARTINGALE_LEVEL
+
+    if use_martingale_val:
+        mult_input = input(f"  Enter Martingale Multiplier [Default: {MARTINGALE_MULTIPLIER}]: ").strip()
+        try:
+            active_multiplier = float(mult_input) if mult_input else MARTINGALE_MULTIPLIER
+        except ValueError:
+            print(f"  Invalid input, using default multiplier: {MARTINGALE_MULTIPLIER}")
+
+        level_input = input(f"  Enter Max Martingale Level [Default: {MAX_MARTINGALE_LEVEL}]: ").strip()
+        try:
+            active_max_level = int(level_input) if level_input else MAX_MARTINGALE_LEVEL
+        except ValueError:
+            print(f"  Invalid input, using default max level: {MAX_MARTINGALE_LEVEL}")
+
     print("\n========================================")
     print(f"Setup Complete! Starting bot for {symbol_str} analyzing last {ticks_val} ticks.")
+    print(f"Initial Stake : ${active_stake:.2f}")
     print(f"Execution mode: {'Continuous' if max_runs_val == 0 else f'{max_runs_val} runs'}")
     print(f"Strategy Mode : {strategy_mode.upper()}")
-    print(f"Martingale: {'Enabled' if use_martingale_val else 'Disabled'}")
+    if use_martingale_val:
+        print(f"Martingale    : Enabled (Multiplier: {active_multiplier}x | Max Level: {active_max_level})")
+    else:
+        print("Martingale    : Disabled")
     print("========================================\n")
 
-    return symbol_str, ticks_val, max_runs_val, use_martingale_val, strategy_mode
+    return symbol_str, ticks_val, max_runs_val, use_martingale_val, strategy_mode, active_stake, active_multiplier, active_max_level
 
 async def main():
     if not API_TOKEN:
@@ -104,7 +132,7 @@ async def main():
         sys.exit(1)
 
     # Run interactive setup
-    active_symbol, active_tick_window, active_max_runs, active_martingale, strategy_mode = interactive_setup()
+    active_symbol, active_tick_window, active_max_runs, active_martingale, strategy_mode, active_stake, active_multiplier, active_max_level = interactive_setup()
 
     client = DerivWSClient(app_id=APP_ID, api_token=API_TOKEN)
 
@@ -129,7 +157,7 @@ async def main():
         logger.error(f"Could not fetch pip size, using default {pip_size}: {e}")
 
     runs = 0
-    current_stake = STAKE_AMOUNT
+    current_stake = active_stake
     consecutive_losses = 0
 
     session_start_balance = None
@@ -205,19 +233,19 @@ async def main():
                             if profit > 0:
                                 logger.info(f"{GREEN}[WIN]{RESET} Profit: +${profit:.2f}")
                                 total_wins += 1
-                                current_stake = STAKE_AMOUNT
+                                current_stake = active_stake
                                 consecutive_losses = 0
                             else:
                                 logger.info(f"{RED}[LOSS]{RESET} Profit: -${abs(profit):.2f}")
                                 total_losses += 1
                                 if active_martingale:
                                     consecutive_losses += 1
-                                    if consecutive_losses <= MAX_MARTINGALE_LEVEL:
-                                        current_stake = current_stake * MARTINGALE_MULTIPLIER
+                                    if consecutive_losses <= active_max_level:
+                                        current_stake = current_stake * active_multiplier
                                         logger.info(f"Martingale Active. Next Stake: ${current_stake:.2f}")
                                     else:
                                         logger.warning(f"Max Martingale Level Reached. Resetting Stake.")
-                                        current_stake = STAKE_AMOUNT
+                                        current_stake = active_stake
                                         consecutive_losses = 0
                             break
 
