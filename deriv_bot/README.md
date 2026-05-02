@@ -8,8 +8,8 @@ This folder contains a custom trading bot designed to trade the **Digit Over/Und
 Because Deriv ticks are pseudorandom (each digit 0-9 has a 10% probability), predicting digits relies on mean reversion rather than pure direction. The bot now offers three interactive modes using **Over 3** (wins 60%) and **Under 6** (wins 60%):
 
 1. **Auto Median Mode:** Maintains a rolling window of the last X ticks. If the median is high (> 4.5), it follows the momentum/trend and trades **Over 3**. If the median is low (< 4.5), it follows the trend downward and trades **Under 6**.
-2. **Strict OVER 3 Mode:** Tracks the very last few ticks. If a streak of low digits occurs (e.g., three digits under 3 in a row), it executes a **DIGITOVER 3** expecting a mean reversion.
-3. **Strict UNDER 6 Mode:** Similar to above, if a streak of high digits occurs (e.g., three digits over 6 in a row), it executes a **DIGITUNDER 6**.
+2. **Strict OVER 3 Mode:** Tracks the very last few ticks. If at least 3 of the last 4 digits are <= 3 (inclusive), it executes a **DIGITOVER 3** expecting a mean reversion.
+3. **Strict UNDER 6 Mode:** Similar to above, if at least 3 of the last 4 digits are >= 6 (inclusive), it executes a **DIGITUNDER 6**.
 
 ### 2. Martingale Recovery System
 You can optionally enable a Martingale system to recover from losses.

@@ -29,7 +29,9 @@ def evaluate_ldp_strategy(prices: List[float], pip_size: int = 4, mode: str = "a
     Returns:
         Tuple of (contract_type, barrier) or (None, None) if no signal.
     """
-    if not prices or len(prices) < 5:
+    # Strict modes only need 4 ticks (last_digits[-4:]), other modes need 5
+    min_required = 4 if mode in ("strict_over", "strict_under") else 5
+    if not prices or len(prices) < min_required:
         return None, None
 
     last_digits = [extract_last_digit(p, pip_size) for p in prices]
