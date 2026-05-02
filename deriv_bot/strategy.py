@@ -7,14 +7,8 @@ logger = logging.getLogger(__name__)
 
 def extract_last_digit(price: float, pip_size: int = 4) -> int:
     """
-    Return the final decimal digit of a price when formatted to the specified pip precision.
-    
-    Parameters:
-        price (float): The price value to inspect.
-        pip_size (int): Number of decimal places to format the price to before extracting the digit.
-    
-    Returns:
-        int: The last decimal digit of the formatted price (0–9).
+    Extract the last digit from a price based on its precise pip size.
+    Deriv indices have highly specific decimal places (e.g., R_100 has 2, Vol 75 has 4).
     """
     # Format the float explicitly to the symbol's required decimal places.
     # E.g., if price is 123.4 and pip_size is 2 -> "123.40", last digit is 0.
@@ -25,18 +19,15 @@ def extract_last_digit(price: float, pip_size: int = 4) -> int:
 
 def evaluate_ldp_strategy(prices: List[float], pip_size: int = 4, mode: str = "auto_median") -> Tuple[Optional[str], Optional[str]]:
     """
-    Determine an Over/Under contract signal and barrier from recent tick prices using the selected mode.
-    
-    Parameters:
-    	prices (List[float]): Recent tick prices (must contain at least 5 entries).
-    	pip_size (int): Number of decimal places the symbol uses.
-    	mode (str): Strategy mode; one of "auto_median", "strict_over", or "strict_under".
-    		- "auto_median": use the median of last digits to pick DIGITOVER ("3") if median > 4.5 or DIGITUNDER ("6") if median < 4.5.
-    		- "strict_over": if at least 3 of the last 4 digits are <= 3, signal DIGITOVER ("3").
-    		- "strict_under": if at least 3 of the last 4 digits are >= 6, signal DIGITUNDER ("6").
-    
+    Evaluates the Over/Under Strategy based on the selected mode.
+
+    Args:
+        prices: List of the latest tick prices.
+        pip_size: Number of decimal places the symbol naturally uses.
+        mode: The strategy mode ('auto_median', 'strict_over', 'strict_under')
+
     Returns:
-    	tuple: `(contract_type, barrier)` where `contract_type` is `"DIGITOVER"` or `"DIGITUNDER"` and `barrier` is the barrier digit as a string; returns `(None, None)` when no signal is produced.
+        Tuple of (contract_type, barrier) or (None, None) if no signal.
     """
     if not prices or len(prices) < 5:
         return None, None

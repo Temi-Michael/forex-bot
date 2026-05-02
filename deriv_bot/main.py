@@ -24,22 +24,7 @@ logging.basicConfig(level=logging.INFO, handlers=[console_handler, file_handler]
 logger = logging.getLogger(__name__)
 
 def interactive_setup():
-    """
-    Interactively collect runtime configuration values for the trading bot via terminal prompts.
-    
-    Prompts the user (unless they choose the non-interactive default path) to select an asset symbol (synthetic index or forex pair), the number of past ticks to analyze, the number of runs before stopping (0 for continuous), the strategy mode (auto_median, strict_over, strict_under), the initial stake amount, and optional Martingale settings (enabled, multiplier, max level). Invalid numeric inputs fall back to configured defaults; choosing non-interactive returns the configured defaults immediately.
-    
-    Returns:
-        tuple: (symbol_str, ticks_val, max_runs_val, use_martingale_val, strategy_mode, active_stake, active_multiplier, active_max_level)
-            - symbol_str (str): Selected trading symbol.
-            - ticks_val (int): Number of past ticks to analyze.
-            - max_runs_val (int): Number of runs before stopping (0 for continuous).
-            - use_martingale_val (bool): Whether Martingale recovery is enabled.
-            - strategy_mode (str): Strategy mode: 'auto_median', 'strict_over', or 'strict_under'.
-            - active_stake (float): Initial stake amount.
-            - active_multiplier (float): Martingale multiplier to apply after a loss.
-            - active_max_level (int): Maximum Martingale recovery levels to attempt.
-    """
+    """Prompts the user via terminal to set up the bot's parameters interactively."""
     print("========================================")
     print("    Deriv Over/Under Bot Setup Setup    ")
     print("========================================")
@@ -151,18 +136,6 @@ def interactive_setup():
     return symbol_str, ticks_val, max_runs_val, use_martingale_val, strategy_mode, active_stake, active_multiplier, active_max_level, active_take_profit
 
 async def main():
-    """
-    Run the trading bot: connect to the Deriv WebSocket API, execute the configured strategy loop, place contracts, and manage staking.
-    
-    Performs an interactive setup to determine runtime parameters, attempts to connect to the Deriv API, determines pip size for the active symbol, then enters a trade loop that:
-    - fetches recent ticks,
-    - evaluates and places contracts using the selected strategy mode,
-    - polls for contract results,
-    - updates running balances and win/loss counts,
-    - resets stake on wins and optionally applies a Martingale sequence on losses.
-    
-    Ensures the client is disconnected on shutdown and logs a formatted session summary. Exits early if API credentials are missing or the client fails to initialize.
-    """
     if not API_TOKEN:
         logger.error("API_TOKEN is not set. Please check your .env file.")
         sys.exit(1)
